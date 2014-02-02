@@ -1,4 +1,4 @@
-// gcc -o nbody nbody.c `sdl-config --cflags --libs`
+// gcc -o nbody nbody.c `sdl-config --cflags --libs` -lm
 /*
 nbody #1 #2 #3 #4 #5 #6 (#7)
 #1: number of bodies (int)
