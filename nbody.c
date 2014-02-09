@@ -25,43 +25,39 @@ b:   blank screen (deletes trails)
 #include <time.h>
 
 void putpixels(SDL_Surface *surface, double **x, int n, int w, int h);
-void events( int *q, SDL_Surface *surface, double **x, double **xp, 
+void events( SDL_Surface *surface, double **x, double **xp, 
              double **xn, double **v, int n, int d, int w, int h,
-             double *a, double dt, double s, int *seed );
-void init( double **x, double **v, int n, int d, int w, int h, int *seed);
+             double *a, double dt, double s );
+void init( double **x, double **v, int n, int d, int w, int h );
 void accelerate( double *x1, double *x2, double *a, int d, double s );
 void dxi( double*x, double *xp, double *v, double *a, double dt, int d );
 void dx( double *xn, double *x, double *xp, double *a, double dt, int d );
 void firstStep( double **x, double **xp, double **xn,
                 double **v, int n, int d, int w, int h,
-                double *a, double dt, double s, int *seed );
+                double *a, double dt, double s );
+
+int seed;
+int quit;
 
 int main(int argc, char *argv[]){
 
+    if(argc<7 || argc>8){
+        printf("Error. Nbody takes 6 or 7 arguments.\n");
+        return -1;
+    }
     int n = atoi( argv[1] );    // number of bodies
     int d = atoi( argv[2] );    // number of spatial dimensions
     double dt = atof( argv[3] ); // time step
     double s = atof( argv[4] ); //softening radius
     int w = atoi( argv[5] ); //window width
     int h = atoi( argv[6] ); //window height
-    int *seed = malloc(sizeof(int)); //random seed
-    if(argc<7){
-        printf("Error. Nbody takes 6 or 7 arguments.\n");
-        return -1;
-    }
-    else if(argc==7){ // if optional seed is omitted,
-        *seed = (int)time(NULL); // generate one
+    if(argc==7){ // if optional seed is omitted,
+        seed = time(NULL); // generate one
     }
     else if(argc==8){ // else, use provided seed
-        *seed = atoi( argv[7] );
-    }
-    else{
-        printf("Error. Nbody takes 6 or 7 arguments.\n");
-        return -1;
+        seed = atoi( argv[7] );
     }
     SDL_Surface *screen; 
-    int *q = malloc(sizeof(int)); // quit flag 
-    *q=0;
     int i,j;
 
     double **x  = malloc(sizeof(double)*n); //init n rows 
@@ -89,12 +85,12 @@ int main(int argc, char *argv[]){
     }
 
     // initialize and do first step
-    firstStep( x, xp, xn, v, n, d, w, h, a, dt, s, seed );
+    firstStep( x, xp, xn, v, n, d, w, h, a, dt, s );
 
     // here is the main loop,
-    // it continues until q=1
-    while( !*q ){
-        events(q, screen, x, xp, xn, v, n, d, w, h, a, dt, s, seed );
+    // it continues until quit=1
+    while( !quit ){
+        events(screen, x, xp, xn, v, n, d, w, h, a, dt, s );
 
 
         for( i=0; i<n; i++ ){    //finding acceleration of this body
@@ -133,39 +129,39 @@ void putpixels(SDL_Surface *surface, double **x, int n, int w, int h ){
     }
 } 
 
-void events( int *q, SDL_Surface *surface, double **x, double **xp, 
+void events( SDL_Surface *surface, double **x, double **xp, 
              double **xn, double **v, int n, int d, int w, int h,
-             double *a, double dt, double s, int *seed ){
+             double *a, double dt, double s ){
 
     SDL_Event event;
     char fname[50];
     while( SDL_PollEvent( &event ) ){ 
         if(event.type == SDL_QUIT){
-            *q=1;
+            quit=1;
             break;
         }
         else if(event.type == SDL_KEYUP){
             switch( event.key.keysym.sym ){ // that's the ASCII code
                 case 27: // escape
-                    *q=1;
+                    quit=1;
                     break;
                 case 98: // b
                     SDL_FillRect( surface, NULL, 0 ); //black screen
                     SDL_UpdateRect( surface,0,0,0,0); //and update
                     break;
                 case 115: // s
-                    printf("%d saved\n", *seed);
+                    printf("%d saved\n", seed);
                     FILE *fp;
                     fp=fopen("saved.txt","a");
                     fprintf(fp,"./nbody %d %d %f %f %d %d %d\n", n, d, 
-                                        dt, s, w, h, *seed);
+                                        dt, s, w, h, seed);
                     fclose(fp);
-                    sprintf(fname, "%d-%f-%f.bmp",*seed,dt,s);
+                    sprintf(fname, "%d-%f-%f.bmp",seed,dt,s);
                     SDL_SaveBMP(surface, fname);
                     break;
                 case 114: // r
-                    *seed = time(NULL);
-                    firstStep(x, xp, xp, v, n, d, w, h, a, dt, s, seed);
+                    seed = time(NULL);
+                    firstStep(x, xp, xp, v, n, d, w, h, a, dt, s);
                     SDL_FillRect( surface, NULL, 0 ); //black screen
                     SDL_UpdateRect( surface,0,0,0,0); //and update
                     break;
@@ -214,7 +210,7 @@ void dx( double *xn, double *x, double *xp, double *a, double dt, int d ){
 // initializes the position and velocity matrices,
 // then finds position and velocity of CoM and subtracts
 // these coords from each particle.
-void init(double **x, double **v, int n, int d, int w, int h, int *seed){
+void init(double **x, double **v, int n, int d, int w, int h){
     int i,j;
     double scale;
     double *comx = malloc(sizeof(double)*d);
@@ -233,7 +229,7 @@ void init(double **x, double **v, int n, int d, int w, int h, int *seed){
     else
         scale=(double)w;
 
-    srand(*seed);
+    srand(seed);
     for( i=0; i<n; i++ ){
         for( j=0; j<d; j++ ){
             vmult = (rand()%10)/10000.0;
@@ -258,10 +254,10 @@ void init(double **x, double **v, int n, int d, int w, int h, int *seed){
 // called at beginning of program and on reset.
 void firstStep( double **x, double **xp, double **xn,
                 double **v, int n, int d, int w, int h,
-                double *a, double dt, double s, int *seed){
+                double *a, double dt, double s){
     int i,j;
     // assign initial conditions (to xp and v)
-    init( xp, v, n, d, w, h, seed ); 
+    init( xp, v, n, d, w, h );
 
     // we += on this array, so it needs to be zeroed
     for( i=0; i<d; i++ )
